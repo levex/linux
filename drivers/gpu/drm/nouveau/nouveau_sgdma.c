@@ -101,7 +101,7 @@ nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
 
 	nvbe = kzalloc(sizeof(*nvbe), GFP_KERNEL);
 	if (!nvbe)
-		return NULL;
+		goto err1;
 
 	nvbe->dev = drm->dev;
 	if (nv_device(drm->device)->card_type < NV_50)
@@ -110,6 +110,11 @@ nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
 		nvbe->ttm.ttm.func = &nv50_sgdma_backend;
 
 	if (ttm_dma_tt_init(&nvbe->ttm, bdev, size, page_flags, dummy_read_page))
-		return NULL;
+		goto err2;
 	return &nvbe->ttm.ttm;
+
+err2:
+	kfree(nvbe);
+err1:
+	return NULL;
 }
