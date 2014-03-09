@@ -477,7 +477,7 @@ static void __init of_ti_composite_divider_clk_setup(struct device_node *node)
 		goto cleanup;
 
 	if (!ti_clk_add_component(node, &div->hw, CLK_COMPONENT_TYPE_DIVIDER))
-		return;
+		goto cleanup;
 
 cleanup:
 	kfree(div->table);
