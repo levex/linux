@@ -164,6 +164,10 @@ static int atapi_an;
 module_param(atapi_an, int, 0444);
 MODULE_PARM_DESC(atapi_an, "Enable ATAPI AN media presence notification (0=0ff [default], 1=on)");
 
+int libata_ncq_maxdepth = 31;
+module_param_named(ncqdepth, libata_ncq_maxdepth, int, 0444);
+MODULE_PARM_DESC(ncqdepth, "Set a maximum depth for NCQ. (default=31).");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
@@ -2113,7 +2117,7 @@ static int ata_dev_config_ncq(struct ata_device *dev,
 		return 0;
 	}
 	if (ap->flags & ATA_FLAG_NCQ) {
-		hdepth = min(ap->scsi_host->can_queue, ATA_MAX_QUEUE - 1);
+		hdepth = min3(ap->scsi_host->can_queue, ATA_MAX_QUEUE - 1, libata_ncq_maxdepth);
 		dev->flags |= ATA_DFLAG_NCQ;
 	}
 
