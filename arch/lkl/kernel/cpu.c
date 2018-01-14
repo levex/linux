@@ -130,6 +130,7 @@ void lkl_cpu_put(void)
 		if (in_interrupt())
 			lkl_bug("%s: in interrupt\n", __func__);
 		lkl_ops->mutex_unlock(cpu.lock);
+        lkl_printf("%s: doing thread_sched_jb\n", __func__);
 		thread_sched_jb();
 		return;
 	}

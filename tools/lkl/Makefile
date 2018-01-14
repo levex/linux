@@ -198,5 +198,6 @@ install: headers_install libraries_install programs_install
 
 FORCE: ;
 .PHONY: all clean $(TEST_TARGETS) FORCE
+.PHONY: $(OUTPUT)lib/lkl.o
 .PHONY: headers_install libraries_install programs_install install
 .NOTPARALLEL : lib/lkl.o

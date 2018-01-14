@@ -1429,6 +1429,8 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 	struct file *file = NULL;
 	unsigned long retval = -EBADF;
 
+    pr_emerg("%s: NOMMU\n", __func__);
+
 	audit_mmap_fd(fd, flags);
 	if (!(flags & MAP_ANONYMOUS)) {
 		file = fget(fd);

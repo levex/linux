@@ -54,27 +54,8 @@ static long run_syscall(long no, long *params)
 
 static int host_task_id;
 static struct task_struct *host0;
+static struct lkl_tls_key *task_key;
 
-static int new_host_task(struct task_struct **task)
-{
-	pid_t pid;
-
-	switch_to_host_task(host0);
-
-	pid = kernel_thread(host_task_stub, NULL, CLONE_FLAGS);
-	if (pid < 0)
-		return pid;
-
-	rcu_read_lock();
-	*task = find_task_by_pid_ns(pid, &init_pid_ns);
-	rcu_read_unlock();
-
-	host_task_id++;
-
-	snprintf((*task)->comm, sizeof((*task)->comm), "host%d", host_task_id);
-
-	return 0;
-}
 static void exit_task(void)
 {
 	do_exit(0);
@@ -94,25 +75,59 @@ static void del_host_task(void *arg)
 	lkl_ops->jmp_buf_set(&ti->sched_jb, exit_task);
 }
 
-static struct lkl_tls_key *task_key;
+static int new_host_task(struct task_struct **task)
+{
+	pid_t pid;
+
+    switch_to_host_task(host0);
+
+	pid = kernel_thread(host_task_stub, NULL, CLONE_FLAGS);
+	if (pid < 0)
+		return pid;
+
+	rcu_read_lock();
+	*task = find_task_by_pid_ns(pid, &init_pid_ns);
+	rcu_read_unlock();
+
+	host_task_id++;
+
+	snprintf((*task)->comm, sizeof((*task)->comm), "host%d", host_task_id);
+
+	return 0;
+}
 
 long lkl_syscall(long no, long *params)
 {
 	struct task_struct *task = host0;
 	long ret;
 
+    lkl_printf("no: %d __NR_mmap: %d __NR_reboot: %d\n", no, __NR_mmap, __NR_reboot);
+    lkl_printf("this is a%s task (%d, \"%s\")\n",
+            test_ti_thread_flag(current_thread_info(), TIF_HOST_THREAD) ?
+                " host" : " normal", current->pid, current->comm);
+
 	ret = lkl_cpu_get();
 	if (ret < 0)
 		return ret;
 
 	if (lkl_ops->tls_get) {
-		task = lkl_ops->tls_get(task_key);
+        if (task_key) {
+            task = lkl_ops->tls_get(task_key);
+            lkl_printf("... we had a task_key (0x%x), got a task\n", task_key);
+        }
 		if (!task) {
 			ret = new_host_task(&task);
-			if (ret)
+			if (ret) {
+                lkl_printf("... ouch! failed to create a new host task ret %ld!\n", ret);
 				goto out;
+            }
+            lkl_printf("... ...task_key: 0x%x\n", task_key);
 			lkl_ops->tls_set(task_key, task);
-		}
+            lkl_printf("... ... we made a new host task with task_key 0x%x pid %d comm \"%s\"\n",
+                    task_key, task->pid, task->comm);
+		} else {
+            lkl_printf("... ... it had pid %d and comm \"%s\"\n", task->pid, task->comm);
+        }
 	}
 
 	switch_to_host_task(task);
@@ -120,9 +135,12 @@ long lkl_syscall(long no, long *params)
 	ret = run_syscall(no, params);
 
 	if (no == __NR_reboot) {
+        lkl_printf("... took the _NR_reboot branch\n");
 		thread_sched_jb();
 		return ret;
 	}
+
+    lkl_printf("... didn't take _NR_reboot branch\n");
 
 out:
 	lkl_cpu_put();

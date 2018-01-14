@@ -124,6 +124,8 @@ int host_task_stub(void *unused)
 
 void switch_to_host_task(struct task_struct *task)
 {
+    int ret;
+
 	if (WARN_ON(!test_tsk_thread_flag(task, TIF_HOST_THREAD)))
 		return;
 
@@ -132,7 +134,15 @@ void switch_to_host_task(struct task_struct *task)
 	if (current == task)
 		return;
 
-	wake_up_process(task);
+    lkl_printf("%s: pid before: %d,\"%s\" target pid %d,\"%s\"\n", __func__,
+                current->pid, current->comm, task->pid, task->comm);
+
+	ret = wake_up_process(task);
+
+    lkl_printf("%s: in a %s task(%d) ret %d, about to thread_sched_jb\n", __func__,
+            test_ti_thread_flag(current_thread_info(), TIF_HOST_THREAD) ?
+                "host" : "normal", current->pid, ret);
+
 	thread_sched_jb();
 	lkl_ops->sem_down(task_thread_info(task)->sched_sem);
 	schedule_tail(abs_prev);
